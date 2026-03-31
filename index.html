@@ -1,540 +1,694 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Reconciliation Dashboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #3b82f6;
-            --primary-dark: #1d4ed8;
-            --success: #10b981;
-            --success-bg: #ecfdf5;
-            --success-border: #a7f3d0;
-            --danger: #ef4444;
-            --danger-bg: #fef2f2;
-            --danger-border: #fecaca;
-            --warn: #f59e0b;
-            --warn-bg: #fffbeb;
-            --warn-border: #fde68a;
-            --bg: #f1f5f9;
-            --surface: #ffffff;
-            --border: #e2e8f0;
-            --text: #0f172a;
-            --text-secondary: #64748b;
-            --text-muted: #94a3b8;
-            --radius: 10px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>filterStatusOverdue — So sánh Flow Cũ vs Mới</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f4ff; color: #1e293b; min-height: 100vh; }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+  header {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+    border-bottom: none;
+    padding: 24px 40px;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: 0 4px 20px #6366f140;
+  }
+  header h1 { font-size: 1.4rem; font-weight: 700; color: #fff; }
+  header span { font-size: 0.85rem; color: #e0e7ff; background: #ffffff25; border: 1px solid #ffffff40; border-radius: 6px; padding: 4px 10px; }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
+  .container { max-width: 1400px; margin: 0 auto; padding: 32px 40px; }
 
-        .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px; }
+  /* tabs */
+  .tabs { display: flex; gap: 8px; margin-bottom: 32px; }
+  .tab { padding: 10px 24px; border-radius: 8px; border: 1px solid #c7d2fe; background: #fff; color: #6366f1; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all .2s; box-shadow: 0 1px 4px #6366f115; }
+  .tab.active { background: linear-gradient(135deg, #6366f1, #8b5cf6); border-color: transparent; color: #fff; box-shadow: 0 4px 12px #6366f140; }
+  .tab:hover:not(.active) { border-color: #818cf8; color: #4f46e5; background: #eef2ff; }
 
-        header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
-            margin-bottom: 28px;
-        }
+  .panel { display: none; }
+  .panel.active { display: block; }
 
-        .header-left h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
-        .header-left p { color: var(--text-secondary); font-size: 13px; margin-top: 4px; }
+  /* comparison grid */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
 
-        .header-right { display: flex; gap: 10px; align-items: center; }
+  .card {
+    background: #fff;
+    border: 1px solid #e0e7ff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px #6366f110;
+  }
+  .card-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #e0e7ff;
+  }
+  .card-header.old { background: linear-gradient(90deg, #fef2f2, #fff5f5); border-left: 3px solid #f87171; }
+  .card-header.new { background: linear-gradient(90deg, #f0fdf4, #f0fdfa); border-left: 3px solid #34d399; }
+  .card-header h2 { font-size: 1rem; font-weight: 600; color: #1e293b; }
+  .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+  .badge.bad { background: #fee2e2; color: #dc2626; }
+  .badge.good { background: #d1fae5; color: #059669; }
+  .card-body { padding: 20px; }
 
-        .date-badge {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 7px 14px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
+  /* flow steps */
+  .step {
+    display: flex; gap: 14px; margin-bottom: 12px; align-items: flex-start;
+    animation: fadeIn .4s ease both;
+  }
+  .step-icon {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 700;
+  }
+  .step-icon.api { background: #dbeafe; color: #2563eb; }
+  .step-icon.filter { background: #fef3c7; color: #d97706; }
+  .step-icon.page { background: #d1fae5; color: #059669; }
+  .step-icon.loop { background: #ede9fe; color: #7c3aed; }
+  .step-icon.warn { background: #fee2e2; color: #dc2626; }
+  .step-icon.ok { background: #d1fae5; color: #059669; }
 
-        .btn {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 8px 18px; border-radius: 8px; font-size: 13px;
-            font-weight: 600; border: none; cursor: pointer; transition: all .15s;
-        }
-        .btn-primary { background: var(--primary); color: #fff; }
-        .btn-primary:hover { background: var(--primary-dark); }
-        .btn-primary:disabled { opacity: .55; cursor: not-allowed; }
+  .step-content { flex: 1; }
+  .step-title { font-size: 0.88rem; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+  .step-desc { font-size: 0.8rem; color: #64748b; line-height: 1.5; }
+  .step-code {
+    margin-top: 6px; background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 6px; padding: 8px 10px;
+    font-family: 'Courier New', monospace; font-size: 0.75rem; color: #4f46e5;
+    white-space: pre;
+  }
 
-        /* ── Summary ── */
-        .summary { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 28px; }
-        .summary-card {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 18px 20px;
-            display: flex; align-items: center; gap: 14px;
-        }
-        .summary-icon {
-            width: 42px; height: 42px; border-radius: 10px;
-            display: grid; place-items: center; font-size: 18px; flex-shrink: 0;
-        }
-        .summary-icon.total { background: #eff6ff; color: var(--primary); }
-        .summary-icon.pass  { background: var(--success-bg); color: var(--success); }
-        .summary-icon.fail  { background: var(--danger-bg); color: var(--danger); }
-        .summary-info .label {
-            font-size: 12px; font-weight: 500; color: var(--text-muted);
-            text-transform: uppercase; letter-spacing: .4px;
-        }
-        .summary-info .value { font-size: 26px; font-weight: 700; line-height: 1.2; }
+  .arrow {
+    text-align: center; color: #a5b4fc; font-size: 1.2rem; margin: 2px 0 2px 46px;
+  }
 
-        /* ── Platform Section ── */
-        .platform-section { margin-bottom: 24px; }
-        .platform-section:last-child { margin-bottom: 0; }
+  /* call counter */
+  .call-counter {
+    display: flex; gap: 8px; margin-top: 16px; padding: 12px 14px;
+    border-radius: 8px; align-items: center;
+  }
+  .call-counter.bad { background: #fff1f2; border: 1px solid #fecdd3; }
+  .call-counter.good { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .call-counter-label { font-size: 0.8rem; color: #64748b; }
+  .call-counter-value { font-size: 1.1rem; font-weight: 700; }
+  .call-counter-value.bad { color: #e11d48; }
+  .call-counter-value.good { color: #059669; }
 
-        .table-card {
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: var(--radius); overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,.1);
-        }
-        .table-card-header {
-            padding: 14px 20px; border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .table-card-header h2 { font-size: 15px; font-weight: 700; }
+  /* divider */
+  .divider { display: flex; align-items: center; gap: 12px; margin: 28px 0 20px; }
+  .divider-line { flex: 1; height: 1px; background: #e0e7ff; }
+  .divider-label { font-size: 0.8rem; color: #818cf8; white-space: nowrap; font-weight: 600; }
 
-        .platform-tag {
-            display: inline-flex; align-items: center; gap: 5px;
-            padding: 4px 12px; border-radius: 6px; font-size: 11px;
-            font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
-        }
-        .platform-tag.wts  { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; }
-        .platform-tag.ikis { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+  /* timeline panel */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: #e0e7ff; }
+  .tl-item { position: relative; margin-bottom: 20px; }
+  .tl-dot {
+    position: absolute; left: -24px; top: 4px;
+    width: 14px; height: 14px; border-radius: 50%; border: 2px solid;
+  }
+  .tl-dot.api { background: #818cf8; border-color: #6366f1; }
+  .tl-dot.filter { background: #fbbf24; border-color: #f59e0b; }
+  .tl-dot.page { background: #34d399; border-color: #10b981; }
+  .tl-title { font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-bottom: 4px; }
+  .tl-desc { font-size: 0.78rem; color: #64748b; }
+  .tl-tag { display: inline-block; font-size: 0.68rem; padding: 1px 7px; border-radius: 10px; margin-left: 6px; font-weight: 600; vertical-align: middle; }
+  .tl-tag.old { background: #fee2e2; color: #dc2626; }
+  .tl-tag.new { background: #d1fae5; color: #059669; }
 
-        /* ── Table ── */
-        .recon-table { width: 100%; border-collapse: collapse; }
-        .recon-table th, .recon-table td {
-            padding: 10px 16px; font-size: 13px; text-align: center;
-            border-bottom: 1px solid var(--border);
-        }
-        .recon-table thead th {
-            background: #f8fafc; font-weight: 600; color: var(--text-secondary);
-            font-size: 12px; text-transform: uppercase; letter-spacing: .3px;
-        }
-        .recon-table tbody tr { transition: background .1s; }
-        .recon-table tbody tr:hover { background: #f8fafc; }
-        .recon-table tbody tr:last-child td { border-bottom: none; }
-        .market-name { text-align: left !important; font-weight: 600; width: 130px; }
+  /* metrics */
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+  .metric { background: #fff; border: 1px solid #e0e7ff; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 2px 8px #6366f110; }
+  .metric-val { font-size: 1.8rem; font-weight: 800; margin-bottom: 4px; }
+  .metric-label { font-size: 0.75rem; color: #64748b; }
+  .metric-val.red { color: #e11d48; }
+  .metric-val.green { color: #059669; }
+  .metric-val.yellow { color: #d97706; }
 
-        /* ── Badges ── */
-        .badge {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 10px; border-radius: 6px; font-size: 12px;
-            font-weight: 600; line-height: 1;
-        }
-        .badge-ok { background: var(--success-bg); color: #059669; border: 1px solid var(--success-border); }
-        .badge-fail {
-            background: var(--danger-bg); color: #dc2626; border: 1px solid var(--danger-border);
-            cursor: pointer; transition: all .15s;
-        }
-        .badge-fail:hover { background: #fee2e2; border-color: #fca5a5; }
+  /* edge cases */
+  .ec-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .ec-card { background: #fff; border: 1px solid #e0e7ff; border-radius: 10px; padding: 16px; box-shadow: 0 2px 8px #6366f110; }
+  .ec-title { font-size: 0.85rem; font-weight: 600; color: #1e293b; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .ec-icon { font-size: 1.1rem; }
+  .ec-body { font-size: 0.78rem; color: #475569; line-height: 1.6; }
+  .ec-code { display: inline; font-family: monospace; background: #eef2ff; padding: 1px 5px; border-radius: 4px; color: #4f46e5; }
 
-        /* ── Modal ── */
-        .modal-overlay {
-            display: none; position: fixed; inset: 0; z-index: 100;
-            background: rgba(15,23,42,.45); backdrop-filter: blur(4px);
-        }
-        .modal-overlay.active { display: flex; align-items: center; justify-content: center; animation: fadeIn .15s; }
-        @keyframes fadeIn { from { opacity: 0 } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(12px) } }
+  /* scenario */
+  .scenario-box { background: linear-gradient(135deg, #eef2ff, #f0fdf4); border: 1px solid #c7d2fe; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; }
+  .scenario-title { font-size: 0.78rem; color: #6366f1; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+  .scenario-params { display: flex; gap: 16px; flex-wrap: wrap; }
+  .param { display: flex; flex-direction: column; gap: 2px; }
+  .param-key { font-size: 0.68rem; color: #6366f1; }
+  .param-val { font-size: 0.95rem; font-weight: 700; color: #1e293b; font-family: monospace; }
 
-        .modal {
-            background: var(--surface); width: 90%; max-width: 580px;
-            border-radius: 14px; overflow: hidden; animation: slideUp .2s ease;
-            max-height: 85vh; display: flex; flex-direction: column;
-        }
-        .modal-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 18px 22px; border-bottom: 1px solid var(--border); flex-shrink: 0;
-        }
-        .modal-header h3 { font-size: 17px; font-weight: 700; }
-        .modal-context { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-top: 2px; }
+  /* visual flow */
+  .vflow { display: flex; flex-direction: column; gap: 0; }
+  .vbox {
+    border: 1px solid; border-radius: 8px; padding: 12px 16px;
+    position: relative; font-size: 0.82rem;
+  }
+  .vbox.api-box { background: #eff6ff; border-color: #93c5fd; }
+  .vbox.filter-box { background: #fffbeb; border-color: #fcd34d; }
+  .vbox.page-box { background: #f0fdf4; border-color: #86efac; }
+  .vbox.result-box { background: #f5f3ff; border-color: #a5b4fc; }
+  .vbox-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .vbox-label.api { color: #2563eb; }
+  .vbox-label.filter { color: #d97706; }
+  .vbox-label.page { color: #059669; }
+  .vbox-label.result { color: #7c3aed; }
+  .vbox-content { color: #1e293b; }
+  .vbox-sub { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+  .varrow { text-align: center; color: #a5b4fc; font-size: 1.4rem; line-height: 1; padding: 2px 0; }
+  .highlight { color: #d97706; font-weight: 700; }
+  .highlight-g { color: #059669; font-weight: 700; }
+  .highlight-b { color: #2563eb; font-weight: 700; }
+  .loop-wrap { border: 2px dashed #c4b5fd; border-radius: 10px; padding: 12px; background: #faf5ff; }
+  .loop-label { font-size: 0.7rem; color: #7c3aed; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em; }
 
-        .close-btn {
-            width: 32px; height: 32px; border-radius: 8px;
-            border: 1px solid var(--border); background: transparent;
-            display: grid; place-items: center; cursor: pointer;
-            font-size: 18px; color: var(--text-secondary); transition: all .1s;
-        }
-        .close-btn:hover { background: #f1f5f9; color: var(--text); }
-
-        .modal-scroll { overflow-y: auto; flex: 1; }
-
-        .modal-body { padding: 18px 22px; display: flex; flex-direction: column; gap: 12px; }
-        .missing-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-        .missing-row > .error-panel { min-width: 0; }
-
-        /* ── Error Panel ── */
-        .error-panel {
-            background: #f8fafc; border: 1px solid var(--border);
-            border-radius: 10px; overflow: hidden;
-        }
-        .error-panel-header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 14px; border-bottom: 1px solid var(--border);
-        }
-        .error-panel-title {
-            font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px;
-        }
-        .error-panel-title .count {
-            min-width: 20px; height: 18px; padding: 0 6px;
-            border-radius: 9px; font-size: 11px; font-weight: 700;
-            display: inline-flex; align-items: center; justify-content: center;
-        }
-
-        .panel-source .error-panel-title { color: var(--danger); }
-        .panel-source .count { background: var(--danger-bg); color: var(--danger); }
-
-        .panel-kis .error-panel-title { color: var(--warn); }
-        .panel-kis .count { background: var(--warn-bg); color: var(--warn); }
-
-        .panel-mismatch .error-panel-title { color: var(--primary); }
-        .panel-mismatch .count { background: #eff6ff; color: var(--primary); }
-
-        .btn-copy {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 10px; border-radius: 6px; font-size: 11px;
-            font-weight: 600; border: 1px solid var(--border); background: var(--surface);
-            cursor: pointer; color: var(--text-secondary); transition: all .15s;
-        }
-        .btn-copy:hover { background: #f1f5f9; color: var(--text); }
-        .btn-copy.copied { background: var(--success-bg); color: var(--success); border-color: var(--success-border); }
-
-        .symbol-list {
-            list-style: none; padding: 10px 14px;
-            display: flex; flex-direction: column; gap: 2px;
-        }
-        .symbol-list li {
-            font-size: 13px; font-weight: 600;
-            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-            color: var(--text); padding: 4px 8px; border-radius: 4px;
-        }
-        .symbol-list li:hover { background: #e2e8f0; }
-        .symbol-list .empty {
-            font-family: inherit; font-weight: 500; color: var(--text-muted);
-        }
-        .symbol-list .empty:hover { background: transparent; }
-
-        /* mismatch table */
-        .mismatch-table { width: 100%; border-collapse: collapse; }
-        .mismatch-table th, .mismatch-table td {
-            padding: 6px 14px; font-size: 12px; text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-        .mismatch-table thead th {
-            background: #f1f5f9; font-weight: 600; color: var(--text-secondary);
-            font-size: 11px; text-transform: uppercase; letter-spacing: .3px;
-        }
-        .mismatch-table tbody tr:last-child td { border-bottom: none; }
-        .mismatch-table .mono {
-            font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-            font-weight: 600;
-        }
-
-        .modal-footer {
-            padding: 14px 22px; border-top: 1px solid var(--border);
-            text-align: right; flex-shrink: 0;
-        }
-        .btn-secondary {
-            padding: 8px 20px; border-radius: 8px; border: 1px solid var(--border);
-            background: var(--surface); font-size: 13px; font-weight: 600;
-            cursor: pointer; color: var(--text-secondary); transition: all .1s;
-        }
-        .btn-secondary:hover { background: #f1f5f9; color: var(--text); }
-
-        .spinner {
-            width: 16px; height: 16px;
-            border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
-            border-radius: 50%; animation: spin .5s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg) } }
-
-        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
-        .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
-        .empty-state p { font-size: 14px; }
-
-        .badge-pending {
-            background: var(--warn-bg); color: #b45309; border: 1px solid var(--warn-border);
-            position: relative; overflow: hidden;
-        }
-        .badge-pending::after {
-            content: ''; position: absolute; inset: 0;
-            background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,.18) 40%, rgba(245,158,11,.28) 50%, rgba(245,158,11,.18) 60%, transparent 100%);
-            animation: shimmer 1.5s ease-in-out infinite;
-        }
-        @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-
-        .ssi-notice {
-            background: var(--warn-bg); border: 1px solid var(--warn-border);
-            border-radius: var(--radius); padding: 12px 18px;
-            font-size: 13px; font-weight: 500; color: #92400e;
-            margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
-        }
-
-        /* ── Smooth transitions ── */
-        @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
-        .fade-in { animation: fadeSlideIn .3s ease both; }
-        .platform-section:nth-child(2) { animation-delay: .05s; }
-        .platform-section:nth-child(3) { animation-delay: .1s; }
-        .summary-card { transition: transform .15s; }
-        .summary-card:hover { transform: translateY(-2px); }
-        .recon-table tbody tr { animation: fadeSlideIn .2s ease both; }
-        .recon-table tbody tr:nth-child(n) { animation-delay: calc(var(--row, 0) * 25ms); }
-    </style>
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
 </head>
 <body>
 
+<header>
+  <div>
+    <h1>filterStatusOverdue — Flow Comparison</h1>
+  </div>
+  <span>MarginContractService.java</span>
+</header>
+
 <div class="container">
-    <header>
-        <div class="header-left">
-            <h1>Data Reconciliation</h1>
-            <p>KIS vs Third-party data comparison</p>
-        </div>
-        <div class="header-right">
-            <span class="date-badge" id="dateLabel">--</span>
-            <button class="btn btn-primary" id="btnRun" onclick="runCompare()">Reload</button>
-        </div>
-    </header>
 
-    <div class="summary" id="summary" style="display:none">
-        <div class="summary-card">
-            <div class="summary-icon total">&#9776;</div>
-            <div class="summary-info"><div class="label">Total checks</div><div class="value" id="statTotal">0</div></div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-icon pass">&#10003;</div>
-            <div class="summary-info"><div class="label">Passed</div><div class="value" id="statPass" style="color:var(--success)">0</div></div>
-        </div>
-        <div class="summary-card">
-            <div class="summary-icon fail">&#10007;</div>
-            <div class="summary-info"><div class="label">Failed</div><div class="value" id="statFail" style="color:var(--danger)">0</div></div>
-        </div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('compare')">So sánh tổng quan</button>
+    <button class="tab" onclick="showTab('detail')">Chi tiết từng bước</button>
+    <button class="tab" onclick="showTab('edge')">Edge Cases</button>
+  </div>
+
+  <!-- ===================== TAB 1: COMPARE ===================== -->
+  <div class="panel active" id="tab-compare">
+
+    <div class="scenario-box">
+      <div class="scenario-title">Ví dụ minh hoạ — Request từ user</div>
+      <div class="scenario-params">
+        <div class="param"><span class="param-key">accountId</span><span class="param-val">ACC001</span></div>
+        <div class="param"><span class="param-key">start (offset)</span><span class="param-val">20</span></div>
+        <div class="param"><span class="param-key">limit</span><span class="param-val">10</span></div>
+        <div class="param"><span class="param-key">status</span><span class="param-val">OVERDUE</span></div>
+        <div class="param"><span class="param-key">TTL totalCount</span><span class="param-val">150 (A/P/F)</span></div>
+        <div class="param"><span class="param-key">Thực tế overdue</span><span class="param-val">40 contracts</span></div>
+      </div>
     </div>
 
-    <div id="resultsContainer">
-        <div class="table-card">
-            <div id="tableContainer">
-                <div class="empty-state">
-                    <div class="icon">&#128202;</div>
-                    <p>Click <strong>Run Compare</strong> to start reconciliation</p>
-                </div>
+    <div class="grid">
+
+      <!-- OLD -->
+      <div class="card">
+        <div class="card-header old">
+          <h2>Flow CU</h2>
+          <span class="badge bad">While-loop</span>
+        </div>
+        <div class="card-body">
+          <div class="vflow">
+            <div class="loop-wrap">
+              <div class="loop-label">Vong lap — so lan call KHONG xac dinh</div>
+
+              <div class="vbox api-box">
+                <div class="vbox-label api">Call TTL #1</div>
+                <div class="vbox-content">start=<span class="highlight-b">0</span>, limit=<span class="highlight-b">20</span> (fetchSize)</div>
+                <div class="vbox-sub">→ 20 items | filter → 12 overdue</div>
+              </div>
+              <div class="varrow">↓</div>
+              <div class="vbox api-box">
+                <div class="vbox-label api">Call TTL #2</div>
+                <div class="vbox-content">start=<span class="highlight-b">20</span>, limit=<span class="highlight-b">20</span></div>
+                <div class="vbox-sub">→ 20 items | filter → 8 overdue | total=20</div>
+              </div>
+              <div class="varrow">↓</div>
+              <div class="vbox api-box">
+                <div class="vbox-label api">Call TTL #3</div>
+                <div class="vbox-content">start=<span class="highlight-b">40</span>, limit=<span class="highlight-b">20</span></div>
+                <div class="vbox-sub">→ 20 items | filter → 7 overdue | total=27</div>
+              </div>
+              <div class="varrow">↓</div>
+              <div class="vbox api-box">
+                <div class="vbox-label api">Call TTL #4</div>
+                <div class="vbox-content">start=<span class="highlight-b">60</span>, limit=<span class="highlight-b">20</span></div>
+                <div class="vbox-sub">→ 20 items | filter → 5 overdue | total=32</div>
+              </div>
+              <div class="varrow">↓</div>
+              <div class="vbox api-box" style="opacity:.6">
+                <div class="vbox-label api">Call TTL #N...</div>
+                <div class="vbox-content">Tiep tuc cho den khi du page hoac het data</div>
+              </div>
             </div>
-        </div>
-    </div>
-</div>
 
-<div class="modal-overlay" id="errorModal">
-    <div class="modal">
-        <div class="modal-header">
-            <div>
-                <h3 id="modalTitle"></h3>
-                <div class="modal-context" id="modalContext"></div>
+            <div class="varrow">↓</div>
+
+            <div class="vbox page-box">
+              <div class="vbox-label page">Ap Pagination</div>
+              <div class="vbox-content">Skip <span class="highlight">20</span> overdue dau, lay <span class="highlight-g">10</span> tiep theo</div>
             </div>
-            <button class="close-btn" onclick="closeModal()">&times;</button>
+
+            <div class="varrow">↓</div>
+
+            <div class="vbox result-box">
+              <div class="vbox-label result">Response</div>
+              <div class="vbox-content">pageResults = [item20..item29]</div>
+            </div>
+          </div>
+
+          <div class="call-counter bad">
+            <div style="flex:1">
+              <div class="call-counter-label">So lan call TTL API</div>
+              <div class="call-counter-value bad">N lan (khong xac dinh)</div>
+            </div>
+            <div style="font-size:1.8rem">⚠️</div>
+          </div>
         </div>
-        <div class="modal-scroll">
-            <div class="modal-body" id="modalBody"></div>
+      </div>
+
+      <!-- NEW -->
+      <div class="card">
+        <div class="card-header new">
+          <h2>Flow MOI</h2>
+          <span class="badge good">Dung 2 call</span>
         </div>
-        <div class="modal-footer">
-            <button class="btn-secondary" onclick="closeModal()">Close</button>
+        <div class="card-body">
+          <div class="vflow">
+
+            <div class="vbox api-box">
+              <div class="vbox-label api">Call TTL #1 — Lay batch dau + totalCount</div>
+              <div class="vbox-content">start=<span class="highlight-b">0</span>, limit=<span class="highlight-b">100</span> (INITIAL_FETCH_SIZE)</div>
+              <div class="vbox-sub">→ 100 items | <span class="highlight">totalCount = 150</span> (KEY!)</div>
+            </div>
+
+            <div class="varrow">↓</div>
+
+            <div class="vbox api-box">
+              <div class="vbox-label api">Call TTL #2 — Lay phan con lai</div>
+              <div class="vbox-content">start=<span class="highlight-b">100</span>, limit=<span class="highlight-b">50</span> (150−100)</div>
+              <div class="vbox-sub">→ 50 items con lai (bo qua 100 da fetch)</div>
+            </div>
+
+            <div class="varrow">↓</div>
+
+            <div class="vbox filter-box">
+              <div class="vbox-label filter">Gop + Filter Overdue (client-side)</div>
+              <div class="vbox-content">allContracts = 150 items</div>
+              <div class="vbox-sub">matureDate &lt; today AND status in [A,P,F]<br>→ overdueList = <span class="highlight-g">40 contracts</span></div>
+            </div>
+
+            <div class="varrow">↓</div>
+
+            <div class="vbox page-box">
+              <div class="vbox-label page">Ap Pagination cua user</div>
+              <div class="vbox-content">overdueList.subList(<span class="highlight">20</span>, <span class="highlight-g">30</span>)</div>
+              <div class="vbox-sub">start=20, limit=10 → lay chinh xac 10 items</div>
+            </div>
+
+            <div class="varrow">↓</div>
+
+            <div class="vbox result-box">
+              <div class="vbox-label result">Response</div>
+              <div class="vbox-content">totalOverdue=40 | pageResults = [item20..item29]</div>
+            </div>
+
+          </div>
+
+          <div class="call-counter good">
+            <div style="flex:1">
+              <div class="call-counter-label">So lan call TTL API</div>
+              <div class="call-counter-value good">Toi da 2 lan co dinh</div>
+            </div>
+            <div style="font-size:1.8rem">✅</div>
+          </div>
         </div>
+      </div>
+
     </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-label">So sanh hieu suat</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-val red">N lan</div>
+        <div class="metric-label">Flow cu — so call (phu thuoc data)</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val green">≤ 2 lan</div>
+        <div class="metric-label">Flow moi — so call co dinh</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val yellow">100%</div>
+        <div class="metric-label">Do chinh xac pagination giu nguyen</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TAB 2: DETAIL ===================== -->
+  <div class="panel" id="tab-detail">
+
+    <div class="grid">
+
+      <!-- OLD DETAIL -->
+      <div class="card">
+        <div class="card-header old">
+          <h2>Flow CU — Tung buoc</h2>
+          <span class="badge bad">Kha nang nhieu call</span>
+        </div>
+        <div class="card-body">
+
+          <div class="step">
+            <div class="step-icon loop">①</div>
+            <div class="step-content">
+              <div class="step-title">Tinh fetchSize</div>
+              <div class="step-desc">fetchSize = max(limit × 2, 3). Voi limit=10 → fetchSize=20. Qua nho voi dataset lon.</div>
+              <div class="step-code">final int fetchSize = Math.max(limit * 2, 3); // = 20</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon loop">②</div>
+            <div class="step-content">
+              <div class="step-title">Bat dau vong lap while(true)</div>
+              <div class="step-desc">offset=0, tiep tuc fetch tung batch nho, tang offset sau moi lan.</div>
+              <div class="step-code">while (true) {
+  var contracts = fetch(accountId, from, to, offset, fetchSize);
+  if (contracts.isEmpty()) break;
+  // filter...
+  offset += fetchSize;
+}</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon filter">③</div>
+            <div class="step-content">
+              <div class="step-title">Filter overdue trong tung batch</div>
+              <div class="step-desc">Moi contract duoc kiem tra matureDate &lt; today va status [A,P,F]. Ket qua tich luy dan.</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon page">④</div>
+            <div class="step-content">
+              <div class="step-title">Kiem tra dieu kien dung vong lap</div>
+              <div class="step-desc">Dung khi co du item cho page VA batch vua fetch la batch cuoi (it hon fetchSize). Rat kho xac dinh som.</div>
+              <div class="step-code">if ((pageResults.size() >= limit) && (contracts.size() < fetchSize)) break;</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon warn">⑤</div>
+            <div class="step-content">
+              <div class="step-title">Van de: Co the fetch qua nhieu</div>
+              <div class="step-desc">Neu du lieu overdue nam cuoi dataset, vong lap phai duyet qua toan bo. Voi 10,000 contracts → co the 500+ lan call TTL.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- NEW DETAIL -->
+      <div class="card">
+        <div class="card-header new">
+          <h2>Flow MOI — Tung buoc</h2>
+          <span class="badge good">Chinh xac, hieu qua</span>
+        </div>
+        <div class="card-body">
+
+          <div class="step">
+            <div class="step-icon api">①</div>
+            <div class="step-content">
+              <div class="step-title">Call TTL lan 1 — Lay batch dau</div>
+              <div class="step-desc">Fetch 100 items dau tien (INITIAL_FETCH_SIZE). Quan trong: lay totalCount tu response de biet tong so contracts [A,P,F].</div>
+              <div class="step-code">var res1 = ttlClient.findMarginContracts(
+  new MarginContractReq(..., 0, 100, [A,P,F]),
+  getCookieValue()
+);
+long totalCount = res1.totalCount(); // e.g. 150</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon api">②</div>
+            <div class="step-content">
+              <div class="step-title">Call TTL lan 2 — Lay phan con lai</div>
+              <div class="step-desc">remaining = totalCount - 100. Neu > 0, fetch tiep tu offset=100, limit=remaining. Bo qua chinh xac 100 items da lay o lan 1.</div>
+              <div class="step-code">long remaining = totalCount - INITIAL_FETCH_SIZE; // 50
+if (remaining > 0) {
+  var res2 = ttlClient.findMarginContracts(
+    new MarginContractReq(..., 100, 50, [A,P,F]),
+    getCookieValue()
+  );
+  allContracts.addAll(res2.list());
+}</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon filter">③</div>
+            <div class="step-content">
+              <div class="step-title">Filter overdue tren toan bo data</div>
+              <div class="step-desc">Duyet allContracts (150 items), chi giu lai nhung contract co matureDate &lt; today. Tinh tong lending, paid, os, interest.</div>
+              <div class="step-code">for (var c : allContracts) {
+  var mapped = map(c, today);
+  if (mapped.loanContractStatus() == OVERDUE) {
+    overdueList.add(mapped);
+    // cong don amounts...
+  }
+} // overdueList.size() = 40</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon page">④</div>
+            <div class="step-content">
+              <div class="step-title">Ap pagination cua user</div>
+              <div class="step-desc">Dung subList don gian. start=20, limit=10 → lay chinh xac item 20 den 29 trong danh sach overdue.</div>
+              <div class="step-code">int from = Math.min(start, totalOverdue);       // 20
+int to   = Math.min(start + limit, totalOverdue); // 30
+var pageResults = overdueList.subList(from, to);</div>
+            </div>
+          </div>
+          <div class="arrow">↓</div>
+
+          <div class="step">
+            <div class="step-icon ok">⑤</div>
+            <div class="step-content">
+              <div class="step-title">Tra ve response chuan xac</div>
+              <div class="step-desc">totalOverdue=40 (so luong thuc te), pageResults=10 items dung trang. Tong amounts tinh tu toan bo 40 overdue contracts.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-label">Timeline call API</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="card-header old"><h2>Flow CU — Timeline</h2></div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-dot api"></div>
+              <div class="tl-title">t=0ms — Call #1 <span class="tl-tag old">API</span></div>
+              <div class="tl-desc">GET /marginContract | start=0, limit=20</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot api"></div>
+              <div class="tl-title">t=200ms — Call #2 <span class="tl-tag old">API</span></div>
+              <div class="tl-desc">GET /marginContract | start=20, limit=20</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot api"></div>
+              <div class="tl-title">t=400ms — Call #3 <span class="tl-tag old">API</span></div>
+              <div class="tl-desc">GET /marginContract | start=40, limit=20</div>
+            </div>
+            <div class="tl-item" style="opacity:.5">
+              <div class="tl-dot api"></div>
+              <div class="tl-title">t=600ms — Call #4..N <span class="tl-tag old">API</span></div>
+              <div class="tl-desc">Tiep tuc... co the hang chuc lan call</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot page"></div>
+              <div class="tl-title">t=?ms — Tra ket qua</div>
+              <div class="tl-desc">Thoi gian khong xac dinh, phu thuoc so contract</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header new"><h2>Flow MOI — Timeline</h2></div>
+        <div class="card-body">
+          <div class="timeline">
+            <div class="tl-item">
+              <div class="tl-dot api"></div>
+              <div class="tl-title">t=0ms — Call #1 <span class="tl-tag new">API</span></div>
+              <div class="tl-desc">GET /marginContract | start=0, limit=100 → totalCount=150</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot api"></div>
+              <div class="tl-title">t=200ms — Call #2 <span class="tl-tag new">API</span></div>
+              <div class="tl-desc">GET /marginContract | start=100, limit=50 (remaining)</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot filter"></div>
+              <div class="tl-title">t=210ms — Filter + Pagination</div>
+              <div class="tl-desc">In-memory: duyet 150 items, lay 40 overdue, subList(20,30)</div>
+            </div>
+            <div class="tl-item">
+              <div class="tl-dot page"></div>
+              <div class="tl-title">t=210ms — Tra ket qua <span class="tl-tag new">DONE</span></div>
+              <div class="tl-desc">Luon ~2x latency API, khong phu thuoc so contract</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TAB 3: EDGE CASES ===================== -->
+  <div class="panel" id="tab-edge">
+
+    <div class="ec-grid">
+
+      <div class="ec-card">
+        <div class="ec-title"><span class="ec-icon">1️⃣</span> totalCount ≤ 100 (chi 1 call)</div>
+        <div class="ec-body">
+          Khi TTL tra ve <span class="ec-code">totalCount = 60</span><br><br>
+          <strong>remaining</strong> = 60 − 100 = <span class="ec-code">−40 ≤ 0</span><br><br>
+          → <strong>Bo qua Call #2 hoan toan</strong><br>
+          → allContracts = res1.list() (60 items)<br>
+          → Chi toc do 1 lan call TTL
+        </div>
+      </div>
+
+      <div class="ec-card">
+        <div class="ec-title"><span class="ec-icon">2️⃣</span> totalCount = null tu API</div>
+        <div class="ec-body">
+          Mot so truong hop TTL co the tra <span class="ec-code">null</span> cho totalCount<br><br>
+          <span class="ec-code">long totalCount = res1.totalCount() != null ? res1.totalCount() : 0;</span><br><br>
+          → totalCount = 0<br>
+          → remaining = 0 − 100 = −100 ≤ 0<br>
+          → Bo qua Call #2, dung du lieu call #1
+        </div>
+      </div>
+
+      <div class="ec-card">
+        <div class="ec-title"><span class="ec-icon">3️⃣</span> start vuot qua tong overdue</div>
+        <div class="ec-body">
+          User truyen <span class="ec-code">start=100</span> nhung chi co <span class="ec-code">40 overdue</span><br><br>
+          <span class="ec-code">from = Math.min(100, 40) = 40</span><br>
+          <span class="ec-code">to   = Math.min(110, 40) = 40</span><br><br>
+          → <span class="ec-code">subList(40, 40)</span> = list rong<br>
+          → Tra ve empty list, totalOverdue=40
+        </div>
+      </div>
+
+      <div class="ec-card">
+        <div class="ec-title"><span class="ec-icon">4️⃣</span> res1.list() hoac res2.list() = null</div>
+        <div class="ec-body">
+          TTL co the tra <span class="ec-code">null</span> thay vi empty list<br><br>
+          <span class="ec-code">new ArrayList&lt;&gt;(res1.list() != null ? res1.list() : List.of())</span><br><br>
+          Tuong tu cho res2:<br>
+          <span class="ec-code">if (res2.list() != null) allContracts.addAll(res2.list());</span><br><br>
+          → Khong NullPointerException
+        </div>
+      </div>
+
+      <div class="ec-card">
+        <div class="ec-title"><span class="ec-icon">5️⃣</span> Khong co contract nao overdue</div>
+        <div class="ec-body">
+          Sau khi filter, <span class="ec-code">overdueList.size() = 0</span><br><br>
+          → totalOverdue = 0<br>
+          → from = min(start, 0) = 0<br>
+          → to   = min(start+limit, 0) = 0<br>
+          → subList(0, 0) = empty list<br><br>
+          Tra ve response voi totalOverdue=0, list=[]
+        </div>
+      </div>
+
+      <div class="ec-card">
+        <div class="ec-title"><span class="ec-icon">6️⃣</span> TTL tra loi (errorCode != success)</div>
+        <div class="ec-body">
+          Sau moi call TTL deu co validate:<br>
+          <span class="ec-code">ttlClient.validateErrorCode(res.errorCode());</span><br><br>
+          → Neu loi: nem <span class="ec-code">TtlUnauthorizedException</span> hoac <span class="ec-code">TtlFailureException</span><br>
+          → Xu ly o tang cao hon (controller/filter)<br>
+          → Khong xu ly mot nua roi tra data sai
+        </div>
+      </div>
+
+    </div>
+
+    <div class="divider">
+      <div class="divider-line"></div>
+      <div class="divider-label">Thay doi code</div>
+      <div class="divider-line"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" style="border-left:3px solid #6366f1; background: linear-gradient(90deg, #eef2ff, #fff);">
+        <h2>Nhung thay doi trong MarginContractService.java</h2>
+      </div>
+      <div class="card-body">
+        <div class="grid" style="gap:16px">
+          <div>
+            <div style="font-size:.8rem;color:#dc2626;font-weight:600;margin-bottom:8px;">XOA (lines 48-135)</div>
+            <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:14px;font-family:monospace;font-size:.75rem;color:#9f1239;white-space:pre-line">// Xoa toan bo while-loop trong
+// filterStatusOverdue()
+
+// Xoa helper method fetch()
+// (lines 120-135) — khong
+// can thiet nua</div>
+          </div>
+          <div>
+            <div style="font-size:.8rem;color:#059669;font-weight:600;margin-bottom:8px;">THEM (thay the)</div>
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;font-family:monospace;font-size:.75rem;color:#166534;white-space:pre-line">// Them hang so
+private static final int
+  INITIAL_FETCH_SIZE = 100;
+
+// Viet lai filterStatusOverdue()
+// voi 2-call strategy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
 </div>
 
 <script>
-    const API_BASE = 'http://localhost:3000';
-    let _pollTimer = null;
-
-    function setDate() {
-        const d = new Date();
-        document.getElementById('dateLabel').textContent =
-            d.toLocaleDateString('vi-VN', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
-    }
-    setDate();
-
-    function stopPolling() {
-        if (_pollTimer) { clearTimeout(_pollTimer); _pollTimer = null; }
-    }
-
-    async function runCompare(isPolling = false) {
-        const btn = document.getElementById('btnRun');
-        if (!isPolling) {
-            stopPolling();
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner"></span> Loading...';
-        }
-        try {
-            const res = await fetch(`${API_BASE}/brokers/compare`);
-            const json = await res.json();
-
-            if (!json.results) {
-                stopPolling();
-                document.getElementById('resultsContainer').innerHTML =
-                    `<div class="table-card"><div class="empty-state"><div class="icon">&#128337;</div><p>${json.message || 'No data available.'}</p></div></div>`;
-                document.getElementById('summary').style.display = 'none';
-                return;
-            }
-
-            document.getElementById('dateLabel').textContent = json.date || '--';
-            const hasPending = renderResults(json.results, json.ssiPending);
-
-            if (hasPending) {
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner"></span> Polling...';
-                _pollTimer = setTimeout(() => runCompare(true), 2000);
-            } else {
-                stopPolling();
-            }
-        } catch (err) {
-            stopPolling();
-            document.getElementById('resultsContainer').innerHTML =
-                `<div class="table-card"><div class="empty-state"><div class="icon">&#9888;</div><p>Failed to load: ${err.message}</p></div></div>`;
-        } finally {
-            if (!_pollTimer) {
-                btn.disabled = false;
-                btn.textContent = 'Reload';
-            }
-        }
-    }
-
-    function renderResults(data, ssiPending = false) {
-        const sources = Object.keys(data);
-        const platforms = ['WTS', 'iKIS'];
-        const allMarkets = new Set();
-
-        for (const src of sources)
-            for (const plat of platforms)
-                if (data[src]?.[plat])
-                    Object.keys(data[src][plat]).forEach(m => allMarkets.add(m));
-
-        const markets = [...allMarkets];
-        let total = 0, pass = 0, fail = 0, pending = 0;
-
-        let html = '';
-
-        if (ssiPending) {
-            html += '<div class="ssi-notice fade-in">\u23F3 SSI data ch\u01B0a download. Ch\u1EC9 hi\u1EC3n th\u1ECB k\u1EBFt qu\u1EA3 MAS.</div>';
-        }
-
-        for (const plat of platforms) {
-            const tagClass = plat === 'WTS' ? 'wts' : 'ikis';
-            html += '<div class="platform-section fade-in"><div class="table-card">';
-            html += `<div class="table-card-header"><h2><span class="platform-tag ${tagClass}">${plat}</span></h2></div>`;
-            html += '<table class="recon-table"><thead><tr><th class="market-name">Market</th>';
-            for (const src of sources) html += `<th>${src}</th>`;
-            html += '</tr></thead><tbody>';
-
-            markets.forEach((market, rowIdx) => {
-                html += `<tr style="--row:${rowIdx}"><td class="market-name">${market}</td>`;
-                for (const src of sources) {
-                    const cell = data[src]?.[plat]?.[market];
-
-                    if (data[src] === null || !cell || cell.status === 'pending') {
-                        pending++;
-                        html += '<td><span class="badge badge-pending">\u23F3 Pending</span></td>';
-                        continue;
-                    }
-
-                    total++;
-                    if (cell.status === true) {
-                        pass++;
-                        html += '<td><span class="badge badge-ok">\u2713 OK</span></td>';
-                    } else {
-                        fail++;
-                        const f = cell.failures || {};
-                        const count = (f.missing_in_source||[]).length + (f.missing_in_kis||[]).length + (f.value_mismatch||[]).length;
-                        const payload = JSON.stringify({ market, src, plat, failures: f });
-                        html += `<td><span class="badge badge-fail" onclick='showError(${payload.replace(/'/g,"&#39;")})'>`;
-                        html += `\u2717 ${count} issue${count>1?'s':''}</span></td>`;
-                    }
-                }
-                html += '</tr>';
-            });
-            html += '</tbody></table></div></div>';
-        }
-
-        document.getElementById('resultsContainer').innerHTML = html;
-        document.getElementById('statTotal').textContent = total;
-        document.getElementById('statPass').textContent = pass;
-        document.getElementById('statFail').textContent = fail;
-        document.getElementById('summary').style.display = 'grid';
-
-        return pending > 0;
-    }
-
-    function showError({ market, src, plat, failures }) {
-        document.getElementById('modalTitle').textContent = market;
-        document.getElementById('modalContext').textContent = `Platform: ${plat}  \u00b7  Source: ${src}`;
-
-        const missingSource = [...(failures.missing_in_source || [])].sort();
-        const missingKis = [...(failures.missing_in_kis || [])].sort();
-        const mismatch = [...(failures.value_mismatch || [])].sort((a,b) => a.symbol.localeCompare(b.symbol));
-
-        let body = '';
-
-        if (missingSource.length || missingKis.length) {
-            body += '<div class="missing-row">';
-            body += missingSource.length
-                ? buildSymbolPanel('panel-source', 'Missing in Source', missingSource)
-                : '<div></div>';
-            body += missingKis.length
-                ? buildSymbolPanel('panel-kis', 'Missing in KIS', missingKis)
-                : '<div></div>';
-            body += '</div>';
-        }
-        if (mismatch.length) {
-            body += '<div class="error-panel panel-mismatch">';
-            body += `<div class="error-panel-header"><div class="error-panel-title">Value Mismatch <span class="count">${mismatch.length}</span></div>`;
-            body += `<button class="btn-copy" onclick="copyList(this, '${mismatch.map(m=>m.symbol).join('\\n')}')">Copy</button></div>`;
-            body += '<table class="mismatch-table"><thead><tr><th>Symbol</th><th>Field</th><th>Source</th><th>KIS</th></tr></thead><tbody>';
-            for (const m of mismatch) {
-                const d = m.differences || {};
-                body += `<tr><td class="mono">${m.symbol}</td><td>${d.kisField||'-'}</td><td>${d.expected??'-'}</td><td>${d.actual??'-'}</td></tr>`;
-            }
-            body += '</tbody></table></div>';
-        }
-
-        document.getElementById('modalBody').innerHTML = body;
-        document.getElementById('errorModal').classList.add('active');
-    }
-
-    function buildSymbolPanel(panelClass, title, items) {
-        let html = `<div class="error-panel ${panelClass}">`;
-        html += `<div class="error-panel-header"><div class="error-panel-title">${title} <span class="count">${items.length}</span></div>`;
-        html += `<button class="btn-copy" onclick="copyList(this, '${items.join('\\n')}')">Copy</button></div>`;
-        html += '<ul class="symbol-list">';
-        html += items.map(s => `<li>${s}</li>`).join('');
-        html += '</ul></div>';
-        return html;
-    }
-
-    function copyList(btn, text) {
-        navigator.clipboard.writeText(text).then(() => {
-            btn.classList.add('copied');
-            btn.textContent = 'Copied!';
-            setTimeout(() => { btn.classList.remove('copied'); btn.textContent = 'Copy'; }, 1500);
-        });
-    }
-
-    function closeModal() { document.getElementById('errorModal').classList.remove('active'); }
-
-    window.addEventListener('click', e => { if (e.target === document.getElementById('errorModal')) closeModal(); });
-    window.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-    runCompare();
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
 </script>
-
 </body>
 </html>
