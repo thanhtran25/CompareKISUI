@@ -508,17 +508,23 @@ const requestedIds = (() => {
   return Array.from(new Set(raw));
 })();
 
-const activeTopics = topics.filter(t => requestedIds.length === 0 || requestedIds.includes(t.id));
+const isDashboard = document.body?.dataset?.mode === 'dashboard';
+const activeTopics = isDashboard ? topics : topics.filter(t => requestedIds.length === 0 || requestedIds.includes(t.id));
 const state = loadState(activeTopics);
 
 /* ─── Init ────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-  renderNav();
-  renderSections();
-  refreshSummary();
-  if (activeTopics.length === 0) {
-    document.getElementById('content').innerHTML =
-      '<div style="color:var(--text-secondary);padding:24px;text-align:center">Không tìm thấy chủ đề. Kiểm tra tham số topics.</div>';
+  if (isDashboard) {
+    renderDashboard();
+    refreshSummary();
+  } else {
+    renderNav();
+    renderSections();
+    refreshSummary();
+    if (activeTopics.length === 0) {
+      document.getElementById('content').innerHTML =
+        '<div style="color:var(--text-secondary);padding:24px;text-align:center">Không tìm thấy chủ đề. Kiểm tra tham số topics.</div>';
+    }
   }
 });
 
@@ -581,6 +587,88 @@ function renderNav() {
     });
     nav.appendChild(button);
   });
+}
+
+/* ─── SVG Icons ───────────────────────────────────── */
+/* ─── Dashboard config ────────────────────────────── */
+const topicMeta = {
+  database: {
+    color: '#2563eb',
+    bg: 'rgba(37,99,235,0.08)',
+    link: 'study-database.html',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>',
+  },
+  network: {
+    color: '#16a34a',
+    bg: 'rgba(22,163,74,0.08)',
+    link: 'study-network.html',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  },
+  patterns: {
+    color: '#7c3aed',
+    bg: 'rgba(124,58,237,0.08)',
+    link: 'study-patterns.html',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+  },
+  security: {
+    color: '#ea580c',
+    bg: 'rgba(234,88,12,0.08)',
+    link: 'study-security.html',
+    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  },
+};
+
+const arrowSvg = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>';
+
+/* ─── Render Dashboard ────────────────────────────── */
+function renderDashboard() {
+  const content = document.getElementById('content');
+  if (!content) return;
+
+  const grid = document.createElement('div');
+  grid.className = 'dashboard-grid';
+
+  topics.forEach(topic => {
+    const meta = topicMeta[topic.id] || {};
+    const done = doneCount(topic.id);
+    const total = totalCount(topic.id);
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    const card = document.createElement('a');
+    card.className = 'dash-card';
+    card.href = meta.link || '#';
+    card.style.setProperty('--card-color', meta.color || 'var(--accent)');
+    card.style.setProperty('--card-bg', meta.bg || 'var(--accent-glow)');
+
+    card.innerHTML = `
+      <div class="dash-card-icon" style="background:${meta.bg};color:${meta.color}">
+        ${meta.icon || ''}
+      </div>
+      <div>
+        <h3>${topic.title}</h3>
+        <div class="dash-hint">${topic.hint}</div>
+      </div>
+      <div class="dash-groups">
+        ${topic.groups.map(g => `<span class="dash-group-chip">${g.title}</span>`).join('')}
+      </div>
+      <div class="dash-progress">
+        <div class="dash-progress-fill" style="width:${pct}%;background:${meta.color}"></div>
+      </div>
+      <div class="dash-meta">
+        <span><strong>${done}</strong> / ${total} keywords</span>
+        <span>${topic.groups.length} nhóm</span>
+        <span>${pct}%</span>
+      </div>
+      <div class="dash-arrow">${arrowSvg}</div>
+    `;
+
+    grid.appendChild(card);
+  });
+
+  content.appendChild(grid);
+
+  const nav = document.getElementById('nav');
+  if (nav) nav.style.display = 'none';
 }
 
 /* ─── SVG Icons ───────────────────────────────────── */
